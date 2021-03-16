@@ -64,7 +64,9 @@ class Actor(Model):
         """ Perform forward pass and map state to action """
         state = F.relu(self.fc1(state))
         state = F.relu(self.fc2(state))
-        return torch.tanh(self.fc3(state))
+        probs = F.softmax(self.fc3(state), dim=0)
+        distribution = Categorical(probs)
+        return distribution.sample()
 
 
 class Critic(Model):
@@ -88,3 +90,11 @@ class Critic(Model):
         x = torch.cat((xs, action), dim=1)
         x = F.leaky_relu(self.fc2(x))
         return self.fc3(x)
+
+    # def forward(self, state):
+    #     x = F.relu(self.fc1(state))
+    #     x = F.relu(self.fc2(x))
+    #
+    #     value = self.fc_critic(x)
+    #
+    #     return value

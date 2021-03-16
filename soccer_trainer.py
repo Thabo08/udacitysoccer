@@ -7,7 +7,6 @@ from unityagents import UnityEnvironment
 
 from udacitysoccer import config
 from udacitysoccer.agents import MultiSoccerAgent
-from udacitysoccer.agents import MultiSoccerAgent2
 from udacitysoccer.agents import SoccerAgent
 from udacitysoccer.support import Experience
 from udacitysoccer.support import OUNoise
@@ -131,8 +130,6 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
     goalie_action_size = env_settings["num_goalie_actions"]
     striker_action_size = env_settings["num_striker_actions"]
 
-    # agent = MultiSoccerAgent2()
-
     scores_window = deque(maxlen=100)
     scores = []
     stats = {"scores": [], "episodes": []}
@@ -151,8 +148,8 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
                 team_1_goalie_actions = np.random.choice(goalie_action_size)
                 team_1_striker_actions = np.random.choice(striker_action_size)
             else:
-                team_1_goalie_actions = agent.act(team_1_goalie_states, goalie_brain_name)
-                team_1_striker_actions = agent.act(team_1_striker_states, striker_brain_name)
+                team_1_goalie_actions = agent.act(team_1_goalie_states[0], goalie_brain_name)[0][0]
+                team_1_striker_actions = agent.act(team_1_striker_states[0], striker_brain_name)[0][0]
 
             # random
             team_2_goalie_actions = np.random.choice(goalie_action_size)
@@ -167,10 +164,10 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
             goalie_next_states, goalie_rewards, goalie_dones = step_tuple(env_info, goalie_brain_name)
             striker_next_states, striker_rewards, striker_dones = step_tuple(env_info, striker_brain_name)
 
-            agent.step(Experience(team_1_goalie_states, team_1_goalie_actions, goalie_rewards, goalie_next_states,
-                                  goalie_dones), brain_name=goalie_brain_name)
-            agent.step(Experience(team_1_striker_states, team_1_striker_actions, striker_rewards, striker_next_states,
-                                  striker_dones), brain_name=striker_brain_name)
+            agent.step(Experience(team_1_goalie_states[0], team_1_goalie_actions, goalie_rewards[0], goalie_next_states[0],
+                                  goalie_dones[0]), player_type=goalie_brain_name)
+            agent.step(Experience(team_1_striker_states[0], team_1_striker_actions, striker_rewards[0], striker_next_states[0],
+                                  striker_dones[0]), player_type=striker_brain_name)
 
             if np.any(goalie_dones):
                 break
@@ -188,9 +185,9 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, mean_score), end="")
         if episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, mean_score))
-            torch.save(agent.local_actor_network(brain_name=goalie_brain_name).state_dict(),
+            torch.save(agent.local_actor_network(player_type=goalie_brain_name).state_dict(),
                        saved_model.format("goalie"))
-            torch.save(agent.local_actor_network(brain_name=striker_brain_name).state_dict(),
+            torch.save(agent.local_actor_network(player_type=striker_brain_name).state_dict(),
                        saved_model.format("striker"))
 
     print("\nFinished training ...")
@@ -287,17 +284,18 @@ if __name__ == '__main__':
         for side in sides:
             state_size = settings["num_{}_states".format(side)]
             num_agents = settings["num_{}_agents".format(side)]
-            action_size = settings["num_{}_actions".format(side)] // 2
+            action_size = settings["num_{}_actions".format(side)]
             memory = ReplayBuffer(action_size, config.BUFFER_SIZE, config.BATCH_SIZE, random_seed=0)
             noise = OUNoise(action_size, 0)
-            soccer_agent = SoccerAgent(player_type=side, state_size=state_size, action_size=action_size, num_agents=num_agents,
-                                       noise=noise, memory=memory)
+            player_type = 'GoalieBrain' if side == 'goalie' else 'StrikerBrain'
+            soccer_agent = SoccerAgent(player_type=player_type, state_size=state_size, action_size=action_size,
+                                       num_agents=num_agents, noise=noise, memory=memory)
 
             soccer_agents.append(soccer_agent)
 
         multi_soccer_agent = MultiSoccerAgent(soccer_agents)
         # _, stats = ddpg(agent=multi_soccer_agent, env_settings=settings)
-        ddpg2({}, env_settings=settings, num_episodes=3, all_random=True)
+        ddpg2(multi_soccer_agent, env_settings=settings, num_episodes=3, all_random=False)
 
     settings["env"].close()
 

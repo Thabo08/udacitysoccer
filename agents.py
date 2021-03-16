@@ -41,35 +41,18 @@ class MultiSoccerAgent:
             self.soccer_agents[soccer_agent.player_type] = soccer_agent
 
     def reset(self):
-        for side in self.soccer_agents:
-            soccer_agent = self.soccer_agents[side]
+        for player_type in self.soccer_agents:
+            soccer_agent = self.soccer_agents[player_type]
             soccer_agent.reset()
 
-    def act(self, states, side, add_noise=True):
-        return self.soccer_agents[side].act(states, add_noise)
+    def act(self, states, player_type, add_noise=True):
+        return self.soccer_agents[player_type].act(states, add_noise)
 
-    def step(self, experience: Experience, side):
-        self.soccer_agents[side].step(experience)
+    def step(self, experience: Experience, player_type):
+        self.soccer_agents[player_type].step(experience)
 
-    def local_actor_network(self, side):
-        return self.soccer_agents[side].local_actor_network()
-
-
-class MultiSoccerAgent2:
-    def __init__(self):
-        pass
-
-    def reset(self):
-        pass
-
-    def act(self, states, brain_name, add_noise=True):
-        pass
-
-    def step(self, experience: Experience, brain_name):
-        pass
-
-    def local_actor_network(self, brain_name):
-        pass
+    def local_actor_network(self, player_type):
+        return self.soccer_agents[player_type].local_actor_network()
 
 
 class SoccerAgent:
@@ -85,7 +68,7 @@ class SoccerAgent:
         """
         self.player_type = player_type
         self.action_size = action_size
-        self.num_agents = num_agents
+        self.num_agents = num_agents // 2  # todo
         self.agents = []
         self.noise = noise
         self.actor_local = Actor(name="{} Actor: Local".format(player_type.title()), state_size=state_size,
@@ -109,8 +92,9 @@ class SoccerAgent:
         actions = np.zeros((self.num_agents, self.action_size))
         for agent in self.agents:
             agent_id = agent.agent_id
-            actions[agent_id] += agent.act(state=states[agent_id], add_noise=add_noise)
-        return np.clip(actions, -1, 1)
+            actions[agent_id] += agent.act(state=states, add_noise=add_noise)  # todo
+            # actions[agent_id] += agent.act(state=states[agent_id], add_noise=add_noise)
+        return actions  # np.clip(actions, -1, 1)
 
     def step(self, experience: Experience):
         """ Add experiences to the experience buffer and learn from a batch """
@@ -159,7 +143,8 @@ class Agent:
             action = self.actor_local(state).cpu().data.numpy()
         self.actor_local.train()  # put policy back in training mode
         if add_noise:
-            action += self.noise.sample()
+            pass  # todo fix the noise issue
+            # action += self.noise.sample()
         return action
 
     def learn(self, experiences):
