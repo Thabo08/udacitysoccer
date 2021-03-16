@@ -38,7 +38,7 @@ class MultiSoccerAgent:
     def __init__(self, soccer_agents: list):
         self.soccer_agents = {}
         for soccer_agent in soccer_agents:
-            self.soccer_agents[soccer_agent.side] = soccer_agent
+            self.soccer_agents[soccer_agent.player_type] = soccer_agent
 
     def reset(self):
         for side in self.soccer_agents:
@@ -55,8 +55,25 @@ class MultiSoccerAgent:
         return self.soccer_agents[side].local_actor_network()
 
 
+class MultiSoccerAgent2:
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def act(self, states, brain_name, add_noise=True):
+        pass
+
+    def step(self, experience: Experience, brain_name):
+        pass
+
+    def local_actor_network(self, brain_name):
+        pass
+
+
 class SoccerAgent:
-    def __init__(self, side: str, state_size: int, action_size: int, num_agents: int, noise: OUNoise,
+    def __init__(self, player_type: str, state_size: int, action_size: int, num_agents: int, noise: OUNoise,
                  memory: ReplayBuffer):
         """
         Initialise object
@@ -66,19 +83,19 @@ class SoccerAgent:
         :param noise: Exploration noise
         :param memory: The replay buffer that stores the experiences for the benefit of experience replay
         """
-        self.side = side
+        self.player_type = player_type
         self.action_size = action_size
         self.num_agents = num_agents
         self.agents = []
         self.noise = noise
-        self.actor_local = Actor(name="{} Actor: Local".format(side.title()), state_size=state_size,
+        self.actor_local = Actor(name="{} Actor: Local".format(player_type.title()), state_size=state_size,
                                  action_size=action_size, random_seed=0).to(DEVICE)
         self.memory = memory
         self.ready_to_learn = len(self.memory) > config.BATCH_SIZE
 
         # Initialise agents
         for agent_id in range(self.num_agents):
-            agent = Agent(side, agent_id, state_size, action_size, 0, self.actor_local, self.noise)
+            agent = Agent(player_type, agent_id, state_size, action_size, 0, self.actor_local, self.noise)
             self.agents.append(agent)
 
     def reset(self):
@@ -110,7 +127,7 @@ class SoccerAgent:
 
 
 class Agent:
-    def __init__(self, side: str, agent_id: int, state_size: int, action_size: int, random_seed, actor_local: Actor,
+    def __init__(self, player_type: str, agent_id: int, state_size: int, action_size: int, random_seed, actor_local: Actor,
                  noise: OUNoise):
         """
         Initialise object
@@ -122,12 +139,15 @@ class Agent:
         self.actor_local = actor_local
         self.noise = noise
 
-        self.actor_target = Actor("{} Actor {}: Target".format(side.title(), agent_id), state_size, action_size, random_seed).to(DEVICE)
+        self.actor_target = Actor("{} Actor {}: Target".format(player_type.title(), agent_id), state_size, action_size,
+                                  random_seed).to(DEVICE)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=config.ACTOR_LR)
 
         # Initialise the Critic networks (local and target)
-        self.critic_local = Critic("{} Critic {}: Local".format(side.title(), agent_id), state_size, action_size, random_seed).to(DEVICE)
-        self.critic_target = Critic("{} Critic {}: Target".format(side.title(), agent_id), state_size, action_size, random_seed).to(DEVICE)
+        self.critic_local = Critic("{} Critic {}: Local".format(player_type.title(), agent_id), state_size, action_size,
+                                   random_seed).to(DEVICE)
+        self.critic_target = Critic("{} Critic {}: Target".format(player_type.title(), agent_id), state_size,
+                                    action_size, random_seed).to(DEVICE)
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=config.CRITIC_LR,
                                            weight_decay=config.WEIGHT_DECAY)
 

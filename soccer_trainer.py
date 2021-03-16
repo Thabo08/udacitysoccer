@@ -7,6 +7,7 @@ from unityagents import UnityEnvironment
 
 from udacitysoccer import config
 from udacitysoccer.agents import MultiSoccerAgent
+from udacitysoccer.agents import MultiSoccerAgent2
 from udacitysoccer.agents import SoccerAgent
 from udacitysoccer.support import Experience
 from udacitysoccer.support import OUNoise
@@ -111,7 +112,7 @@ def step_tuple(env_info, brain_name):
     return env_info[brain_name].vector_observations, env_info[brain_name].rewards, env_info[brain_name].local_done
 
 
-def ddpg2(agents: dict, env_settings: dict, num_episodes=2000, max_time_steps=1000, target=1.0):
+def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_time_steps=1000, target=1.0, all_random=False):
     """ Train an agent using the DDPG algorithm
 
         :param env_settings: Settings of the environment
@@ -120,17 +121,80 @@ def ddpg2(agents: dict, env_settings: dict, num_episodes=2000, max_time_steps=10
         :param target: The average target score the agent needs to achieve for optimal performance
         :param max_time_steps: Maximum time steps per episode
     """
-    team_1_goalie = agents[TEAM_1_GOALIE]
-    team_1_striker = agents[TEAM_1_STRIKER]
 
     env = env_settings["env"]
     brain_names = settings["brain_names"]
 
+    goalie_brain_name = brain_names[0]
+    striker_brain_name = brain_names[1]
+
+    goalie_action_size = env_settings["num_goalie_actions"]
+    striker_action_size = env_settings["num_striker_actions"]
+
+    # agent = MultiSoccerAgent2()
+
+    scores_window = deque(maxlen=100)
+    scores = []
+    stats = {"scores": [], "episodes": []}
+    saved_model = 'checkpoint_{}.pth'
+
     for episode in range(1, num_episodes + 1):
         env_info = env.reset(train_mode=True)
+        score = np.zeros(env_settings["num_striker_agents"])
 
-        team_1_goalie_states = env_info[brain_names[0]].vector_observations
-        team_1_striker_states = env_info[brain_names[1]].vector_observations
+        team_1_goalie_states = env_info[goalie_brain_name].vector_observations
+        team_1_striker_states = env_info[striker_brain_name].vector_observations
+        agent.reset()
+
+        for _ in range(max_time_steps):
+            if all_random:
+                team_1_goalie_actions = np.random.choice(goalie_action_size)
+                team_1_striker_actions = np.random.choice(striker_action_size)
+            else:
+                team_1_goalie_actions = agent.act(team_1_goalie_states, goalie_brain_name)
+                team_1_striker_actions = agent.act(team_1_striker_states, striker_brain_name)
+
+            # random
+            team_2_goalie_actions = np.random.choice(goalie_action_size)
+            team_2_striker_actions = np.random.choice(striker_action_size)
+
+            goalie_actions = np.array((team_1_goalie_actions, team_2_goalie_actions))
+            striker_actions = np.array((team_1_striker_actions, team_2_striker_actions))
+
+            actions = dict(zip(brain_names, [goalie_actions, striker_actions]))
+            env_info = env.step(actions)
+
+            goalie_next_states, goalie_rewards, goalie_dones = step_tuple(env_info, goalie_brain_name)
+            striker_next_states, striker_rewards, striker_dones = step_tuple(env_info, striker_brain_name)
+
+            agent.step(Experience(team_1_goalie_states, team_1_goalie_actions, goalie_rewards, goalie_next_states,
+                                  goalie_dones), brain_name=goalie_brain_name)
+            agent.step(Experience(team_1_striker_states, team_1_striker_actions, striker_rewards, striker_next_states,
+                                  striker_dones), brain_name=striker_brain_name)
+
+            if np.any(goalie_dones):
+                break
+
+            team_1_goalie_states = goalie_next_states
+            team_1_striker_states = striker_next_states
+            score += striker_rewards[0]  # For now, get the score of only one striker
+
+        scores_window.append(score)
+        scores.append(score)
+        mean_score = np.mean(scores_window)
+        stats["scores"].append(score)
+        stats["episodes"].append(episode)
+
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, mean_score), end="")
+        if episode % 100 == 0:
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, mean_score))
+            torch.save(agent.local_actor_network(brain_name=goalie_brain_name).state_dict(),
+                       saved_model.format("goalie"))
+            torch.save(agent.local_actor_network(brain_name=striker_brain_name).state_dict(),
+                       saved_model.format("striker"))
+
+    print("\nFinished training ...")
+    return scores, stats
 
 
 def ddpg(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_time_steps=1000, target=1.0):
@@ -214,7 +278,7 @@ if __name__ == '__main__':
     # random_steps()
     # env.close()
     settings = env_settings()
-    run_random = True
+    run_random = False
     if run_random:
         random_steps(settings)
     else:
@@ -226,13 +290,14 @@ if __name__ == '__main__':
             action_size = settings["num_{}_actions".format(side)] // 2
             memory = ReplayBuffer(action_size, config.BUFFER_SIZE, config.BATCH_SIZE, random_seed=0)
             noise = OUNoise(action_size, 0)
-            soccer_agent = SoccerAgent(side=side, state_size=state_size, action_size=action_size, num_agents=num_agents,
+            soccer_agent = SoccerAgent(player_type=side, state_size=state_size, action_size=action_size, num_agents=num_agents,
                                        noise=noise, memory=memory)
 
             soccer_agents.append(soccer_agent)
 
         multi_soccer_agent = MultiSoccerAgent(soccer_agents)
-        _, stats = ddpg(agent=multi_soccer_agent, env_settings=settings)
+        # _, stats = ddpg(agent=multi_soccer_agent, env_settings=settings)
+        ddpg2({}, env_settings=settings, num_episodes=3, all_random=True)
 
     settings["env"].close()
 
