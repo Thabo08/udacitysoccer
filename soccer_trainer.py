@@ -12,6 +12,11 @@ from udacitysoccer.support import Experience
 from udacitysoccer.support import OUNoise
 from udacitysoccer.support import ReplayBuffer
 
+# Keys
+TEAM_1_GOALIE = "team_1_goalie"
+TEAM_1_STRIKER = "team_1_striker"
+TEAM_2_GOALIE = "team_2_goalie"
+TEAM_2_STRIKER = "team_2_striker"
 
 def env_settings():
     settings = {}
@@ -106,6 +111,28 @@ def step_tuple(env_info, brain_name):
     return env_info[brain_name].vector_observations, env_info[brain_name].rewards, env_info[brain_name].local_done
 
 
+def ddpg2(agents: dict, env_settings: dict, num_episodes=2000, max_time_steps=1000, target=1.0):
+    """ Train an agent using the DDPG algorithm
+
+        :param env_settings: Settings of the environment
+        :param agents: a dictionary of soccer agents
+        :param num_episodes: the number of episodes to train the agent
+        :param target: The average target score the agent needs to achieve for optimal performance
+        :param max_time_steps: Maximum time steps per episode
+    """
+    team_1_goalie = agents[TEAM_1_GOALIE]
+    team_1_striker = agents[TEAM_1_STRIKER]
+
+    env = env_settings["env"]
+    brain_names = settings["brain_names"]
+
+    for episode in range(1, num_episodes + 1):
+        env_info = env.reset(train_mode=True)
+
+        team_1_goalie_states = env_info[brain_names[0]].vector_observations
+        team_1_striker_states = env_info[brain_names[1]].vector_observations
+
+
 def ddpg(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_time_steps=1000, target=1.0):
     """ Train an agent using the DDPG algorithm
 
@@ -187,7 +214,7 @@ if __name__ == '__main__':
     # random_steps()
     # env.close()
     settings = env_settings()
-    run_random = False
+    run_random = True
     if run_random:
         random_steps(settings)
     else:
