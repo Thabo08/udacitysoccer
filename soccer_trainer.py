@@ -78,7 +78,7 @@ def random_steps(settings: dict):
             actions = dict(zip([g_brain_name, s_brain_name],
                                [g_actions, s_actions]))
             env_info = env.step(actions)
-
+            # {'GoalieBrain': array([1., 2.]), 'StrikerBrain': array([1., 0.])}
             # get next states
             g_next_states = env_info[g_brain_name].vector_observations
             s_next_states = env_info[s_brain_name].vector_observations
@@ -242,8 +242,9 @@ def ddpg(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_tim
                 agent.step(Experience(striker_states[idx], striker_actions[idx], striker_rewards[idx],
                                       striker_next_states[idx], striker_dones[idx]), "striker")
             striker_states = striker_next_states
+            goalie_states = goalie_next_states
             score += striker_rewards
-            done = np.any(striker_dones) or np.any(goalie_dones)
+            done = np.any(goalie_dones)
             if done:
                 break
 
@@ -295,7 +296,7 @@ if __name__ == '__main__':
 
         multi_soccer_agent = MultiSoccerAgent(soccer_agents)
         # _, stats = ddpg(agent=multi_soccer_agent, env_settings=settings)
-        ddpg2(multi_soccer_agent, env_settings=settings, num_episodes=3, all_random=False)
+        ddpg2(multi_soccer_agent, env_settings=settings, num_episodes=100, all_random=False)
 
     settings["env"].close()
 

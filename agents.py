@@ -111,8 +111,8 @@ class SoccerAgent:
 
 
 class Agent:
-    def __init__(self, player_type: str, agent_id: int, state_size: int, action_size: int, random_seed, actor_local: Actor,
-                 noise: OUNoise):
+    def __init__(self, player_type: str, agent_id: int, state_size: int, action_size: int, random_seed,
+                 actor_local: Actor, noise: OUNoise):
         """
         Initialise object
         :param agent_id: Identifier of an agent
