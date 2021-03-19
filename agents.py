@@ -143,8 +143,7 @@ class Agent:
             action = self.actor_local(state).cpu().data.numpy()
         self.actor_local.train()  # put policy back in training mode
         if add_noise:
-            pass  # todo fix the noise issue
-            # action += self.noise.sample()
+            action += self.noise.sample()
         return action
 
     def learn(self, experiences):

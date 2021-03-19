@@ -148,9 +148,11 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
                 team_1_goalie_actions = np.random.choice(goalie_action_size)
                 team_1_striker_actions = np.random.choice(striker_action_size)
             else:
-                team_1_goalie_actions = agent.act(team_1_goalie_states[0], goalie_brain_name)[0][0]
-                team_1_striker_actions = agent.act(team_1_striker_states[0], striker_brain_name)[0][0]
+                team_1_goalie_actions = max(agent.act(team_1_goalie_states[0], goalie_brain_name)[0]) * 10
+                team_1_striker_actions = max(agent.act(team_1_striker_states[0], striker_brain_name)[0]) * 10
 
+            team_1_goalie_actions = np.clip(team_1_goalie_actions, 0, goalie_action_size)
+            team_1_striker_actions = np.clip(team_1_striker_actions, 0, striker_action_size)
             # random
             team_2_goalie_actions = np.random.choice(goalie_action_size)
             team_2_striker_actions = np.random.choice(striker_action_size)
@@ -164,6 +166,8 @@ def ddpg2(agent: MultiSoccerAgent, env_settings: dict, num_episodes=2000, max_ti
             goalie_next_states, goalie_rewards, goalie_dones = step_tuple(env_info, goalie_brain_name)
             striker_next_states, striker_rewards, striker_dones = step_tuple(env_info, striker_brain_name)
 
+            team_1_goalie_actions = np.array([team_1_goalie_actions for _ in range(goalie_action_size)])
+            team_1_striker_actions = np.array([team_1_striker_actions for _ in range(striker_action_size)])
             agent.step(Experience(team_1_goalie_states[0], team_1_goalie_actions, goalie_rewards[0], goalie_next_states[0],
                                   goalie_dones[0]), player_type=goalie_brain_name)
             agent.step(Experience(team_1_striker_states[0], team_1_striker_actions, striker_rewards[0], striker_next_states[0],

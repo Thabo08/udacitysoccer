@@ -64,12 +64,7 @@ class Actor(Model):
         """ Perform forward pass and map state to action """
         state = F.relu(self.fc1(state))
         state = F.relu(self.fc2(state))
-        probs = F.softmax(self.fc3(state), dim=0)
-        if action is None:
-            distribution = Categorical(probs)
-            action = distribution.sample()
-        # return distribution.sample()
-        return action
+        return self.fc3(state)
 
 
 class Critic(Model):
@@ -81,22 +76,15 @@ class Critic(Model):
         """
         super().__init__(name, state_size, action_size, random_seed, fc1_units, fc2_units)
         self.fc1 = nn.Linear(state_size, fc1_units)
-        # self.fc2 = nn.Linear(fc1_units + action_size, fc2_units)
-        self.fc2 = nn.Linear(fc1_units, fc2_units)
+        self.fc2 = nn.Linear(fc1_units + action_size, fc2_units)
         self.fc3 = nn.Linear(fc2_units, 1)
         reset_parameters([self.fc1, self.fc2, self.fc3])
         self.print_()
 
-    # def forward(self, state, action=None):
-    #     """ Perform forward pass and map state and action to Q values """
-    #     assert action is not None, "Action cannot be none"
-    #     xs = F.leaky_relu(self.fc1(state))
-    #     x = torch.cat((xs, action.float()), dim=1)
-    #     x = F.leaky_relu(self.fc2(x))
-    #     return self.fc3(x)
-
     def forward(self, state, action=None):
-        state = F.relu(self.fc1(state))
-        state = F.relu(self.fc2(state))
-
-        return self.fc3(state)
+        """ Perform forward pass and map state and action to Q values """
+        assert action is not None, "Action cannot be none"
+        xs = F.leaky_relu(self.fc1(state))
+        x = torch.cat((xs, action.float()), dim=1)
+        x = F.leaky_relu(self.fc2(x))
+        return self.fc3(x)
